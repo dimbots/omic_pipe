@@ -15,22 +15,50 @@ TRUE)
 fasta=$(grep "PATH TO FASTA" config | cut -d ":" -f2)
 gtf=$(grep "PATH TO GTF" config | cut -d ":" -f2)
 
-ln -s peak_calling/merged* .
+pwd=$(pwd)
 
-for peaks in $(ls merged*)
+if [ -d "$pwd/peak_calling/merged" ]
 
-	do
+	then
 
-	sample=$(echo $peaks | cut -d "_" -f3)
-	out=$(echo "annotation_$sample.tsv")
+		ln -s peak_calling/merged/* .
 
-	annotatePeaks.pl $peaks $fasta -gtf $gtf > $out
+		for peaks in $(ls *.tsv)
 
-	done
+			do
 
-	tput setaf 2; tput bold; echo " "
-	tput setaf 3; tput bold; echo "    Annotation Complete!"
-	tput setaf 2; tput bold; echo " "
+			sample=$(echo $peaks | cut -d "_" -f2)
+			out=$(echo "annotation_$sample")
+
+			annotatePeaks.pl $peaks $fasta -gtf $gtf > $out
+
+			done
+
+			tput setaf 2; tput bold; echo " "
+			tput setaf 3; tput bold; echo "    Annotation Complete!"
+			tput setaf 2; tput bold; echo " "
+
+	else
+
+		ln -s peak_calling/*.broadPeak .
+
+		for peaks in $(ls *.broadPeak)
+
+                        do
+
+                        sample=$(echo $peaks | cut -d "_" -f2)
+                        out=$(echo "annotation_$sample")
+
+                        annotatePeaks.pl $peaks $fasta -gtf $gtf > $out
+
+                        done
+
+                        tput setaf 2; tput bold; echo " "
+                        tput setaf 3; tput bold; echo "    Annotation Complete!"
+                        tput setaf 2; tput bold; echo " "
+
+fi
+
 ;;
 
 FALSE)
@@ -42,5 +70,5 @@ FALSE)
 esac
 
 mkdir annotated
-mv *.tsv annotated
-rm merged*
+mv annotation* annotated/
+rm *.broadPeak
