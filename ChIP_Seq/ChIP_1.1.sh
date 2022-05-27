@@ -28,7 +28,6 @@ for fq in $(ls *.gz)
 	fastqc $trimmed_fq
 	gzip $trimmed_fq
 done
-		wait
 
 mkdir fastqc
 mv *.zip *.html fastqc/
