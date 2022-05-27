@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Annotation
 
 THREADS=$(grep "THREADS:" config | awk '{print substr($0,length,1)}')
