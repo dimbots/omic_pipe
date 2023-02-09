@@ -1,0 +1,9 @@
+# KO
+awk '{print $1 "\t" $2 "\t" $3}' KO_CTCF_peaks.narrowPeak > KO.bed
+sort-bed KO.bed > KO_CTCF.bed
+bedToBigBed KO_CTCF.bed mm10.chrom.sizes KO_CTCF.bb
+
+# WT
+awk '{print $1 "\t" $2 "\t" $3}' WT_CTCF_peaks.narrowPeak > WT.bed
+sort-bed WT.bed > WT_CTCF.bed
+bedToBigBed WT_CTCF.bed mm10.chrom.sizes WT_CTCF.bb

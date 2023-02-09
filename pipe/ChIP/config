@@ -1,0 +1,44 @@
+# Threads
+THREADS:8
+
+# Trimming Settings
+SLIDINGWINDOW:4:18
+LEADING:28
+TRAILING:28
+MINLEN:70
+
+# Mapping
+PATH TO GENOME:/media/dimbo/10T/TAL_LAB/Genomes/hisat_index/mm10
+PATH TO GTF:/media/dimbo/10T/TAL_LAB/Genomes/genes_info/mm10.ncbiRefSeq.gtf
+
+# Alignment Tool
+HISAT2:TRUE
+BOWTIE:FALSE
+
+# Normalization Method
+RPKM:TRUE
+BPM:FALSE
+
+# Downsampling 
+DOWNSAMPLING:TRUE
+
+# Heatmap
+PLOT:TRUE
+REFERENCE_POINT:TRUE
+SCALE_REGIONS:FALSE
+TSS:5000
+TES:5000
+BODY:5000
+
+# Peak Calling 
+PEAK_CALLING:TRUE
+BROAD:TRUE
+GENOME_SP:mm 
+# mm-mouse  hs-human  ce-c.elegans dm-fruitfly
+
+# Annotation
+ANNOTATION:TRUE
+PATH TO FASTA:/media/dimbo/10T/TAL_LAB/Genomes/genes_info/mm10.fa
+
+
+
