@@ -11,6 +11,10 @@ library(cowplot)
 library(stringr)
 set.seed(1234)
 
+library(BSgenome.Mmusculus.UCSC.mm10)
+library(BSgenome.Mmusculus.UCSC.mm9)
+
+
 ################################################################################################################################
 
 # Pre-processing workflow
@@ -624,22 +628,141 @@ CombineTracks(
 dev.off()
 
 
-# Peak calling and plot coverage with cellranger peaks and macs2
-peaks <- CallPeaks(
-  object = ATAC_MERGED.filt,
-  group.by = "predicted.id",
-  broad = TRUE,
-  effective.genome.size = 2652783500
-)
+# Re cluster and integrate with scRNA subcluster
+ATAC_Subet=subset(ATAC_MERGED.filt, idents = c(0,1,3,4,11,12))
 
-pdf("out_muc2", height = 8, width = 8)
-CoveragePlot(
-  object = ATAC_MERGED.filt,
-  region = "Olfm4",
-  ranges = peaks,
-  ranges.title = "MACS2"
-)
+ATAC_Subet <- RunTFIDF(ATAC_Subet)
+ATAC_Subet <- FindTopFeatures(ATAC_Subet, min.cutoff = 'q0')
+ATAC_Subet <- RunSVD(ATAC_Subet)
 
+ATAC_Subet <- RunUMAP(object = ATAC_Subet, reduction = 'lsi', dims = 2:25)
+ATAC_Subet <- FindNeighbors(object = ATAC_Subet, reduction = 'lsi', dims = 2:25)
+ATAC_Subet <- FindClusters(object = ATAC_Subet, verbose = FALSE, algorithm = 3, resolution = 1.5)
+
+pdf("UMAP_recluster.pdf", width = 15, height = 8)
+DimPlot(object = ATAC_Subet, label = TRUE) + NoLegend()
 dev.off()
+
+gene.activities <- GeneActivity(ATAC_Subet)
+
+# add the gene activity matrix to the Seurat object as a new assay and normalize it
+ATAC_Subet[['RNA']] <- CreateAssayObject(counts = gene.activities)
+ATAC_Subet <- NormalizeData(
+  object = ATAC_Subet,
+  assay = 'RNA',
+  normalization.method = 'LogNormalize',
+  scale.factor = median(ATAC_Subet$nCount_RNA)
+)
+
+DefaultAssay(ATAC_Subet) <- 'RNA'
+
+
+RNA_subset <- readRDS("/media/dimbo/10T/data/talianidis_data/scRNA_seq/Talianidis_GFP_2_fixed/analysis/Seurat/Lgr5Cre_0.1.3.4.5.rds")
+RNA_subset_renamed=RenameIdents(RNA_subset,  `0` = "Stem I", `1` = "Stem II", `2` = "TA", `3` = "Progenitor Ι", `4` = "S phase cells", `5` = "Progenitor II", `6` = "Progenitor III", `7` = "Goblet-Paneth")
+
+transfer.anchors <- FindTransferAnchors(
+  reference = RNA_subset_renamed,
+  query = ATAC_Subet,
+  reduction = 'cca'
+)
+
+predicted.labels <- TransferData(
+  anchorset = transfer.anchors,
+  refdata = RNA_subset_renamed$seurat_clusters,
+  weight.reduction = ATAC_Subet[['lsi']],
+  dims = 2:30
+)
+
+predicted.labels$predicted.id[predicted.labels$predicted.id == 0] <- "Stem I"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 1] <- "Stem II"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 2] <- "TA"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 3] <- "Progenitor I"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 4] <- "S phase Cells"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 5] <- "Progenitor II"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 6] <- "Progenitor III"
+predicted.labels$predicted.id[predicted.labels$predicted.id == 7] <- "Goblet-Paneth"
+
+ATAC_Subet <- AddMetaData(object = ATAC_Subet, metadata = predicted.labels)
+
+plot1 <- DimPlot(
+  object = RNA_subset_renamed,
+  label = TRUE,
+  repel = TRUE) + NoLegend() + ggtitle('scRNA-seq')
+
+plot2 <- DimPlot(
+  object = ATAC_Subet,
+  group.by = 'predicted.id',
+  label = TRUE,
+  repel = TRUE) + NoLegend() + ggtitle('scATAC-seq')
+
+pdf("UMAP_scRNA-scATAC.pdf", 
+    width = 17,
+    height = 8)
+plot1 + plot2
+dev.off()
+
+
+
+# Linking peaks to genes
+
+DefaultAssay(ATAC_Renamed) <- "peaks"
+
+  ATAC_Renamed <- RegionStats(ATAC_Renamed, genome = BSgenome.Mmusculus.UCSC.mm10)
+
+# link peaks to genes
+#  DefaultAssay(ATAC_Subet) <- "peaks"
+  
+ATAC_Renamed <- LinkPeaks(
+  object = ATAC_Renamed,
+  peak.assay = "peaks",
+  expression.assay = "RNA",
+  genes.use = c("Olfm4", "Muc2")
+)
+
+idents.plot = c("Stem I", "Stem II")
+
+p1 <- CoveragePlot(
+  object = ATAC_Renamed,
+  region = "Olfm4",
+  features = "Olfm4",
+  expression.assay = "RNA",
+  idents = idents.plot,
+  extend.upstream = 10000,
+  extend.downstream = 10000
+)
+
+pdf("link_to_Gene_Olf4.pdf", width = 10, height = 8)
+p1
+dev.off()
+
+#############################################
+
+
+ATAC_Renamed <- LinkPeaks(
+  object = ATAC_Renamed,
+  peak.assay = "peaks",
+  expression.assay = "RNA",
+  genes.use = c("Lgr5", "Muc2")
+)
+
+idents.plot = c("Stem I", "Stem II")
+
+p1 <- CoveragePlot(
+  object = ATAC_Renamed,
+  region = "Lgr5",
+  features = "Lgr5",
+  expression.assay = "RNA",
+  idents = idents.plot,
+  extend.upstream = 10000,
+  extend.downstream = 10000
+)
+
+pdf("link_to_Gene_Lgr5.pdf", width = 10, height = 8)
+p1
+dev.off()
+
+
+
+
 
 
